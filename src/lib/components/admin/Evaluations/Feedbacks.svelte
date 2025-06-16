@@ -208,7 +208,7 @@
 							</div>
 						</td>
 
-						<td class=" py-1 pl-3 flex flex-col">
+						<td class=" py-0.5 text-center font-semibold align-middle">
 							<div class="flex flex-col items-start gap-0.5 h-full">
 								<div class="flex flex-col h-full">
 									{#if feedback.data?.sibling_model_ids}

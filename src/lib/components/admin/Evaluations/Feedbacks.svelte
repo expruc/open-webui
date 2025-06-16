@@ -170,6 +170,16 @@
 						{$i18n.t('Models')}
 					</th>
 
+					<th scope="col" class="px-3 text-center cursor-pointer select-none align-middle">
+						{$i18n.t('Rating')}
+					</th>
+					<th scope="col" class="px-3 text-center cursor-pointer select-none align-middle">
+						{$i18n.t('Reason')}
+					</th>
+					<th scope="col" class="px-3 text-center cursor-pointer select-none align-middle">
+						{$i18n.t('Comment')}
+					</th>
+
 					<th scope="col" class="px-3 py-1.5 text-right cursor-pointer select-none w-fit">
 						{$i18n.t('Result')}
 					</th>
@@ -183,11 +193,8 @@
 			</thead>
 			<tbody class="">
 				{#each paginatedFeedbacks as feedback (feedback.id)}
-					<tr
-						class="bg-white dark:bg-gray-900 dark:border-gray-850 text-xs cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition"
-						on:click={() => openFeedbackModal(feedback)}
-					>
-						<td class=" py-0.5 text-right font-semibold">
+					<tr class="bg-white dark:bg-gray-900 dark:border-gray-850 text-xs">
+						<td class="py-0.5 text-center font-semibold align-middle">
 							<div class="flex justify-center">
 								<Tooltip content={feedback?.user?.name}>
 									<div class="shrink-0">
@@ -232,6 +239,28 @@
 								</div>
 							</div>
 						</td>
+
+						<td class=" py-0.5 text-right font-semibold">
+							<div class="flex justify-center">
+								{feedback.data?.details?.rating ?? '-'}
+							</div>
+						</td>
+
+						<td class="py-0.5 text-right font-semibold">
+							<div class="flex justify-center">
+								{feedback.data?.reason?.trim() ? feedback.data.reason : '-'}
+							</div>
+						</td>
+
+						<td
+							class="py-0.5 px-3 text-left align-middle max-w-[300px] class:max-w-[500px]={feedback
+								.data?.comment?.length > 50}"
+						>
+							<div class="whitespace-pre-wrap break-words text-gray-700 dark:text-gray-300">
+								{feedback.data?.comment?.trim() ? feedback.data.comment : '-'}
+							</div>
+						</td>
+
 						<td class="px-3 py-1 text-right font-medium text-gray-900 dark:text-white w-max">
 							<div class=" flex justify-end">
 								{#if feedback.data.rating.toString() === '1'}
@@ -252,6 +281,9 @@
 							<FeedbackMenu
 								on:delete={(e) => {
 									deleteFeedbackHandler(feedback.id);
+								}}
+								on:viewChat={(e) => {
+									window.location.href = `/s/${feedback.meta?.chat_id}`;
 								}}
 							>
 								<button

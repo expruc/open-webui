@@ -11,6 +11,7 @@
 
 	import Dropdown from '$lib/components/common/Dropdown.svelte';
 	import GarbageBin from '$lib/components/icons/GarbageBin.svelte';
+	import ChatBubble from '$lib/components/icons/ChatBubble.svelte';
 	import Pencil from '$lib/components/icons/Pencil.svelte';
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 	import Download from '$lib/components/icons/Download.svelte';
@@ -40,6 +41,16 @@
 			>
 				<GarbageBin strokeWidth="2" />
 				<div class="flex items-center">{$i18n.t('Delete')}</div>
+			</DropdownMenu.Item>
+			<DropdownMenu.Item
+				class="flex  gap-2  items-center px-3 py-1.5 text-sm  cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md"
+				on:click={() => {
+					dispatch('viewChat');
+					show = false;
+				}}
+			>
+				<ChatBubble strokeWidth="2" />
+				<div class="flex items-center">{$i18n.t('View Chat')}</div>
 			</DropdownMenu.Item>
 		</DropdownMenu.Content>
 	</div>

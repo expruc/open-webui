@@ -433,7 +433,11 @@ export const queryDoc = async (
 	token: string,
 	collection_name: string,
 	query: string,
-	k: number | null = null
+	k: number | null = null,
+	k_reranker: number | null = null,
+	r: number | null = null,
+	hybrid: boolean | null = null,
+	hybrid_bm25_weight: number | null = null,
 ) => {
 	let error = null;
 
@@ -447,7 +451,11 @@ export const queryDoc = async (
 		body: JSON.stringify({
 			collection_name: collection_name,
 			query: query,
-			k: k
+			k: k,
+			k_reranker: k_reranker,
+			r: r,
+			hybrid: hybrid,
+			hybrid_bm25_weight: hybrid_bm25_weight
 		})
 	})
 		.then(async (res) => {

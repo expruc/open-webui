@@ -2,7 +2,7 @@
 	import { onMount, tick, getContext } from 'svelte';
 
 	import { decodeString } from '$lib/utils';
-	import { knowledge } from '$lib/stores';
+	import { knowledge, user } from '$lib/stores';
 
 	import { getKnowledgeBases } from '$lib/apis/knowledge';
 
@@ -99,6 +99,10 @@
 				};
 			}
 		);
+		// Hide individual knowledge files when the feature flag is disabled
+		if (!($user?.permissions?.chat?.allow_attach_files_from_knowledge ?? true)) {
+			items = items.filter((it) => it.type !== 'file');
+		}
 
 		await tick();
 

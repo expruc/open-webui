@@ -470,7 +470,17 @@
 						</div>
 					</button>
 
-					<Knowledge {onSelect} />
+					<Knowledge
+						onSelect={(item) => {
+							if (
+								!($user?.permissions?.chat?.allow_attach_files_from_knowledge ?? true) &&
+								item?.type === 'file'
+							) {
+								return;
+							}
+							onSelect(item);
+						}}
+					/>
 				</div>
 			{:else if tab === 'notes'}
 				<div in:fly={{ x: 20, duration: 150 }}>

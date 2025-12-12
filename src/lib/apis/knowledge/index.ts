@@ -38,17 +38,24 @@ export const createNewKnowledge = async (
 	return res;
 };
 
-export const getKnowledgeBases = async (token: string = '') => {
+export const getKnowledgeBases = async (
+	token: string = '',
+	filesPage: number = 1,
+	filesLimit: number = 10
+) => {
 	let error = null;
 
-	const res = await fetch(`${WEBUI_API_BASE_URL}/knowledge/`, {
-		method: 'GET',
-		headers: {
-			Accept: 'application/json',
-			'Content-Type': 'application/json',
-			authorization: `Bearer ${token}`
+	const res = await fetch(
+		`${WEBUI_API_BASE_URL}/knowledge/?files_page=${filesPage}&files_limit=${filesLimit}`,
+		{
+			method: 'GET',
+			headers: {
+				Accept: 'application/json',
+				'Content-Type': 'application/json',
+				authorization: `Bearer ${token}`
+			}
 		}
-	})
+	)
 		.then(async (res) => {
 			if (!res.ok) throw await res.json();
 			return res.json();
@@ -100,10 +107,15 @@ export const getKnowledgeBaseList = async (token: string = '') => {
 	return res;
 };
 
-export const getKnowledgeById = async (token: string, id: string) => {
+export const getKnowledgeById = async (
+	token: string,
+	id: string,
+	page: number = 1,
+	limit: number = 50
+) => {
 	let error = null;
 
-	const res = await fetch(`${WEBUI_API_BASE_URL}/knowledge/${id}`, {
+	const res = await fetch(`${WEBUI_API_BASE_URL}/knowledge/${id}?page=${page}&limit=${limit}`, {
 		method: 'GET',
 		headers: {
 			Accept: 'application/json',

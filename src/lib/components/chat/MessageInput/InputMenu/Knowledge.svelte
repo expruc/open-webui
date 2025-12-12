@@ -19,12 +19,13 @@
 	let items = [];
 	let selectedIdx = 0;
 
-	onMount(async () => {
-		if ($knowledge === null) {
-			await knowledge.set(await getKnowledgeBases(localStorage.token));
-		}
+	let filesPage = 1;
+	let filesLimit = 10;
+	let allFilesLoaded = false;
+	let filesLoading = false;
 
-		let legacy_documents = $knowledge
+	const processKnowledge = (knowledgeData: any[]) => {
+		let legacy_documents = knowledgeData
 			.filter((item) => item?.meta?.document)
 			.map((item) => ({
 				...item,
@@ -59,17 +60,17 @@
 					]
 				: [];
 
-		let collections = $knowledge
+		let collections = knowledgeData
 			.filter((item) => !item?.meta?.document)
 			.map((item) => ({
 				...item,
 				type: 'collection'
 			}));
-		``;
+
 		let collection_files =
-			$knowledge.length > 0
+			knowledgeData.length > 0
 				? [
-						...$knowledge
+						...knowledgeData
 							.reduce((a, item) => {
 								return [
 									...new Set([
@@ -91,7 +92,7 @@
 					]
 				: [];
 
-		items = [...collections, ...collection_files, ...legacy_collections, ...legacy_documents].map(
+		return [...collections, ...collection_files, ...legacy_collections, ...legacy_documents].map(
 			(item) => {
 				return {
 					...item,
@@ -99,6 +100,52 @@
 				};
 			}
 		);
+	};
+
+	const loadMoreFiles = async () => {
+		if (filesLoading || allFilesLoaded) return;
+		filesLoading = true;
+
+		filesPage = filesPage + 1;
+
+		const res = await getKnowledgeBases(localStorage.token, filesPage, filesLimit);
+		if (res) {
+			let newFilesCount = 0;
+			for (const kb of res) {
+				newFilesCount += (kb.files || []).length;
+			}
+
+			if (newFilesCount === 0) {
+				allFilesLoaded = true;
+			} else {
+				// Merge new files into existing knowledge
+				const currentKnowledge = $knowledge || [];
+				for (const newKb of res) {
+					const existingKb = currentKnowledge.find((kb) => kb.id === newKb.id);
+					if (existingKb) {
+						existingKb.files = [...(existingKb.files || []), ...(newKb.files || [])];
+					}
+				}
+				knowledge.set([...currentKnowledge]);
+				items = processKnowledge($knowledge);
+
+				if (newFilesCount < filesLimit * res.length) {
+					allFilesLoaded = true;
+				}
+			}
+		} else {
+			allFilesLoaded = true;
+		}
+
+		filesLoading = false;
+	};
+
+	onMount(async () => {
+		if ($knowledge === null) {
+			await knowledge.set(await getKnowledgeBases(localStorage.token, filesPage, filesLimit));
+		}
+
+		items = processKnowledge($knowledge);
 
 		await tick();
 
@@ -107,7 +154,20 @@
 </script>
 
 {#if loaded}
-	<div class="flex flex-col gap-0.5">
+	<div
+		class="flex flex-col gap-0.5 max-h-60 overflow-y-auto"
+		on:scroll={(e) => {
+			const el = e.target as HTMLElement;
+			if (
+				el &&
+				el.scrollTop > 0 &&
+				el.scrollHeight > el.clientHeight &&
+				el.scrollHeight - el.scrollTop - el.clientHeight < 20
+			) {
+				loadMoreFiles();
+			}
+		}}
+	>
 		{#each items as item, idx}
 			<button
 				class=" px-2.5 py-1 rounded-xl w-full text-left flex justify-between items-center text-sm {idx ===
@@ -116,7 +176,6 @@
 					: ''}"
 				type="button"
 				on:click={() => {
-					console.log(item);
 					onSelect(item);
 				}}
 				on:mousemove={() => {
@@ -155,6 +214,13 @@
 				</div>
 			</button>
 		{/each}
+
+		{#if !allFilesLoaded}
+			<div class="w-full flex justify-center py-2 text-xs animate-pulse items-center gap-2">
+				<Spinner className="size-4" />
+				<div>{$i18n.t('Loading...')}</div>
+			</div>
+		{/if}
 	</div>
 {:else}
 	<div class="py-4.5">

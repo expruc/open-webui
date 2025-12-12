@@ -41,7 +41,9 @@ router = APIRouter()
 
 
 @router.get("/", response_model=list[KnowledgeUserResponse])
-async def get_knowledge(user=Depends(get_verified_user)):
+async def get_knowledge(
+    files_page: int = 1, files_limit: int = 10, user=Depends(get_verified_user)
+):
     # Return knowledge bases with read access
     knowledge_bases = []
     if user.role == "admin" and BYPASS_ADMIN_ACCESS_CONTROL:
@@ -49,10 +51,13 @@ async def get_knowledge(user=Depends(get_verified_user)):
     else:
         knowledge_bases = Knowledges.get_knowledge_bases_by_user_id(user.id, "read")
 
+    skip = (files_page - 1) * files_limit
     return [
         KnowledgeUserResponse(
             **knowledge_base.model_dump(),
-            files=Knowledges.get_file_metadatas_by_id(knowledge_base.id),
+            files=Knowledges.get_file_metadatas_by_id(
+                knowledge_base.id, skip=skip, limit=files_limit
+            ),
         )
         for knowledge_base in knowledge_bases
     ]
@@ -70,7 +75,7 @@ async def get_knowledge_list(user=Depends(get_verified_user)):
     return [
         KnowledgeUserResponse(
             **knowledge_base.model_dump(),
-            files=Knowledges.get_file_metadatas_by_id(knowledge_base.id),
+            files=Knowledges.get_file_metadatas_by_id(knowledge_base.id, limit=10),
         )
         for knowledge_base in knowledge_bases
     ]
@@ -189,7 +194,9 @@ class KnowledgeFilesResponse(KnowledgeResponse):
 
 
 @router.get("/{id}", response_model=Optional[KnowledgeFilesResponse])
-async def get_knowledge_by_id(id: str, user=Depends(get_verified_user)):
+async def get_knowledge_by_id(
+    id: str, page: int = 1, limit: int = 50, user=Depends(get_verified_user)
+):
     knowledge = Knowledges.get_knowledge_by_id(id=id)
 
     if knowledge:
@@ -198,10 +205,12 @@ async def get_knowledge_by_id(id: str, user=Depends(get_verified_user)):
             or knowledge.user_id == user.id
             or has_access(user.id, "read", knowledge.access_control)
         ):
-
+            skip = (page - 1) * limit
             return KnowledgeFilesResponse(
                 **knowledge.model_dump(),
-                files=Knowledges.get_file_metadatas_by_id(knowledge.id),
+                files=Knowledges.get_file_metadatas_by_id(
+                    knowledge.id, skip=skip, limit=limit
+                ),
             )
     else:
         raise HTTPException(

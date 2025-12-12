@@ -82,7 +82,20 @@
 		: 'hidden'} rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800 flex flex-col bg-white dark:bg-gray-850 w-72 p-1"
 	id="suggestions-container"
 >
-	<div class="overflow-y-auto scrollbar-thin max-h-60">
+	<div
+		class="overflow-y-auto scrollbar-thin max-h-60"
+		on:scroll={(e) => {
+			const el = e.target as HTMLElement;
+			if (
+				el &&
+				el.scrollTop > 0 &&
+				el.scrollHeight > el.clientHeight &&
+				el.scrollHeight - el.scrollTop - el.clientHeight < 20
+			) {
+				suggestionElement?.loadMoreFiles?.();
+			}
+		}}
+	>
 		{#if !loading}
 			{#if char === '/'}
 				<Prompts

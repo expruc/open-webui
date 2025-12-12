@@ -232,23 +232,31 @@ class KnowledgeTable:
         except Exception:
             return []
 
-    def get_files_by_id(self, knowledge_id: str) -> list[FileModel]:
+    def get_files_by_id(
+        self, knowledge_id: str, skip: int = 0, limit: Optional[int] = 50
+    ) -> list[FileModel]:
         try:
             with get_db() as db:
-                files = (
+                query = (
                     db.query(File)
                     .join(KnowledgeFile, File.id == KnowledgeFile.file_id)
                     .filter(KnowledgeFile.knowledge_id == knowledge_id)
-                    .all()
                 )
+
+                if limit:
+                    query = query.offset(skip).limit(limit)
+
+                files = query.all()
                 return [FileModel.model_validate(file) for file in files]
         except Exception:
             return []
 
-    def get_file_metadatas_by_id(self, knowledge_id: str) -> list[FileMetadataResponse]:
+    def get_file_metadatas_by_id(
+        self, knowledge_id: str, skip: int = 0, limit: Optional[int] = 50
+    ) -> list[FileMetadataResponse]:
         try:
             with get_db() as db:
-                files = self.get_files_by_id(knowledge_id)
+                files = self.get_files_by_id(knowledge_id, skip, limit)
                 return [FileMetadataResponse(**file.model_dump()) for file in files]
         except Exception:
             return []

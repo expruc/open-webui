@@ -36,6 +36,7 @@
 	import { blobToFile } from '$lib/utils';
 
 	import Spinner from '$lib/components/common/Spinner.svelte';
+	import Loader from '$lib/components/common/Loader.svelte';
 	import Files from './KnowledgeBase/Files.svelte';
 	import AddFilesPlaceholder from '$lib/components/AddFilesPlaceholder.svelte';
 
@@ -72,6 +73,11 @@
 	let id = null;
 	let knowledge: Knowledge | null = null;
 	let query = '';
+
+	let filesPage = 1;
+	let limit = 50;
+	let allFilesLoaded = false;
+	let filesLoading = false;
 
 	let showAddTextContentModal = false;
 	let showSyncConfirmModal = false;
@@ -400,6 +406,31 @@
 		}
 	};
 
+	const loadMoreFiles = async () => {
+		if (filesLoading || allFilesLoaded) return;
+		filesLoading = true;
+
+		filesPage = filesPage + 1;
+
+		const res = await getKnowledgeById(localStorage.token, id, filesPage, limit);
+		if (res && res.files) {
+			if (res.files.length === 0) {
+				allFilesLoaded = true;
+			} else {
+				knowledge.files = [...knowledge.files, ...res.files];
+				knowledge = { ...knowledge } as Knowledge; // Trigger reactivity
+
+				if (res.files.length < limit) {
+					allFilesLoaded = true;
+				}
+			}
+		} else {
+			allFilesLoaded = true;
+		}
+
+		filesLoading = false;
+	};
+
 	const addFileHandler = async (fileId) => {
 		const updatedKnowledge = await addFileToKnowledgeById(localStorage.token, id, fileId).catch(
 			(e) => {
@@ -628,13 +659,16 @@
 
 		id = $page.params.id;
 
-		const res = await getKnowledgeById(localStorage.token, id).catch((e) => {
+		const res = await getKnowledgeById(localStorage.token, id, filesPage, limit).catch((e) => {
 			toast.error(`${e}`);
 			return null;
 		});
 
 		if (res) {
 			knowledge = res;
+			if (knowledge.files.length < limit) {
+				allFilesLoaded = true;
+			}
 		} else {
 			goto('/workspace/knowledge');
 		}
@@ -937,7 +971,20 @@
 						</div>
 
 						{#if filteredItems.length > 0}
-							<div class=" flex overflow-y-auto h-full w-full scrollbar-hidden text-xs">
+							<div
+								class=" flex flex-col overflow-y-auto h-full w-full scrollbar-hidden text-xs"
+								on:scroll={(e) => {
+									const el = e.target as HTMLElement;
+									if (
+										el &&
+										el.scrollTop > 0 &&
+										el.scrollHeight > el.clientHeight &&
+										el.scrollHeight - el.scrollTop - el.clientHeight < 20
+									) {
+										loadMoreFiles();
+									}
+								}}
+							>
 								<Files
 									small
 									files={filteredItems}
@@ -946,12 +993,19 @@
 										selectedFileId = selectedFileId === e.detail ? null : e.detail;
 									}}
 									on:delete={(e) => {
-										console.log(e.detail);
-
 										selectedFileId = null;
 										deleteFileHandler(e.detail);
 									}}
 								/>
+
+								{#if !allFilesLoaded && query === '' && filesLoading}
+									<div
+										class="w-full flex justify-center py-1 text-xs animate-pulse items-center gap-2"
+									>
+										<Spinner className=" size-4" />
+										<div class=" ">{$i18n.t('Loading...')}</div>
+									</div>
+								{/if}
 							</div>
 						{:else}
 							<div class="my-3 flex flex-col justify-center text-center text-gray-500 text-xs">

@@ -15,6 +15,8 @@
 	import Youtube from '$lib/components/icons/Youtube.svelte';
 	import { folders } from '$lib/stores';
 	import Folder from '$lib/components/icons/Folder.svelte';
+	import Spinner from '$lib/components/common/Spinner.svelte';
+	import { getKnowledgeBases } from '$lib/apis/knowledge';
 
 	const i18n = getContext('i18n');
 
@@ -27,6 +29,11 @@
 
 	let items = [];
 	let fuse = null;
+
+	let filesPage = 1;
+	let filesLimit = 10;
+	let allFilesLoaded = false;
+	let filesLoading = false;
 
 	export let filteredItems = [];
 	$: if (fuse) {
@@ -79,8 +86,8 @@
 		}
 	};
 
-	onMount(async () => {
-		let legacy_documents = knowledge
+	const processKnowledge = (knowledgeData: any[]) => {
+		let legacy_documents = knowledgeData
 			.filter((item) => item?.meta?.document)
 			.map((item) => ({
 				...item,
@@ -115,7 +122,7 @@
 					]
 				: [];
 
-		let collections = knowledge
+		let collections = knowledgeData
 			.filter((item) => !item?.meta?.document)
 			.map((item) => ({
 				...item,
@@ -123,9 +130,9 @@
 			}));
 
 		let collection_files =
-			knowledge.length > 0
+			knowledgeData.length > 0
 				? [
-						...knowledge
+						...knowledgeData
 							.reduce((a, item) => {
 								return [
 									...new Set([
@@ -154,7 +161,7 @@
 			title: folder.name
 		}));
 
-		items = [
+		return [
 			...folder_items,
 			...collections,
 			...collection_files,
@@ -166,6 +173,50 @@
 				...(item?.legacy || item?.meta?.legacy || item?.meta?.document ? { legacy: true } : {})
 			};
 		});
+	};
+
+	export const loadMoreFiles = async () => {
+		if (filesLoading || allFilesLoaded) return;
+		filesLoading = true;
+
+		filesPage = filesPage + 1;
+
+		const res = await getKnowledgeBases(localStorage.token, filesPage, filesLimit);
+		if (res) {
+			let newFilesCount = 0;
+			for (const kb of res) {
+				newFilesCount += (kb.files || []).length;
+			}
+
+			if (newFilesCount === 0) {
+				allFilesLoaded = true;
+			} else {
+				// Merge new files into existing knowledge
+				for (const newKb of res) {
+					const existingKb = knowledge.find((kb) => kb.id === newKb.id);
+					if (existingKb) {
+						existingKb.files = [...(existingKb.files || []), ...(newKb.files || [])];
+					}
+				}
+				knowledge = [...knowledge];
+				items = processKnowledge(knowledge);
+				fuse = new Fuse(items, {
+					keys: ['name', 'description']
+				});
+
+				if (newFilesCount < filesLimit * res.length) {
+					allFilesLoaded = true;
+				}
+			}
+		} else {
+			allFilesLoaded = true;
+		}
+
+		filesLoading = false;
+	};
+
+	onMount(async () => {
+		items = processKnowledge(knowledge);
 
 		fuse = new Fuse(items, {
 			keys: ['name', 'description']
@@ -194,55 +245,63 @@
 </div>
 
 {#if filteredItems.length > 0 || query.startsWith('http')}
-	{#each filteredItems as item, idx}
-		{#if !['youtube', 'web'].includes(item.type)}
-			<button
-				class=" px-2 py-1 rounded-xl w-full text-left flex justify-between items-center {idx ===
-				selectedIdx
-					? ' bg-gray-50 dark:bg-gray-800 dark:text-gray-100 selected-command-option-button'
-					: ''}"
-				type="button"
-				on:click={() => {
-					console.log(item);
-					onSelect({
-						type: 'knowledge',
-						data: item
-					});
-				}}
-				on:mousemove={() => {
-					selectedIdx = idx;
-				}}
-				data-selected={idx === selectedIdx}
-			>
-				<div class="  text-black dark:text-gray-100 flex items-center gap-1">
-					<Tooltip
-						content={item?.legacy
-							? $i18n.t('Legacy')
-							: item?.type === 'file'
-								? `${item?.collection?.name} > ${$i18n.t('File')}`
-								: item?.type === 'collection'
-									? $i18n.t('Collection')
-									: ''}
-						placement="top"
-					>
-						{#if item?.type === 'collection'}
-							<Database className="size-4" />
-						{:else if item?.type === 'folder'}
-							<Folder className="size-4" />
-						{:else}
-							<DocumentPage className="size-4" />
-						{/if}
-					</Tooltip>
+	<div>
+		{#each filteredItems as item, idx}
+			{#if !['youtube', 'web'].includes(item.type)}
+				<button
+					class=" px-2 py-1 rounded-xl w-full text-left flex justify-between items-center {idx ===
+					selectedIdx
+						? ' bg-gray-50 dark:bg-gray-800 dark:text-gray-100 selected-command-option-button'
+						: ''}"
+					type="button"
+					on:click={() => {
+						onSelect({
+							type: 'knowledge',
+							data: item
+						});
+					}}
+					on:mousemove={() => {
+						selectedIdx = idx;
+					}}
+					data-selected={idx === selectedIdx}
+				>
+					<div class="  text-black dark:text-gray-100 flex items-center gap-1">
+						<Tooltip
+							content={item?.legacy
+								? $i18n.t('Legacy')
+								: item?.type === 'file'
+									? `${item?.collection?.name} > ${$i18n.t('File')}`
+									: item?.type === 'collection'
+										? $i18n.t('Collection')
+										: ''}
+							placement="top"
+						>
+							{#if item?.type === 'collection'}
+								<Database className="size-4" />
+							{:else if item?.type === 'folder'}
+								<Folder className="size-4" />
+							{:else}
+								<DocumentPage className="size-4" />
+							{/if}
+						</Tooltip>
 
-					<Tooltip content={`${decodeString(item?.name)}`} placement="top-start">
-						<div class="line-clamp-1 flex-1">
-							{decodeString(item?.name)}
-						</div>
-					</Tooltip>
-				</div>
-			</button>
+						<Tooltip content={`${decodeString(item?.name)}`} placement="top-start">
+							<div class="line-clamp-1 flex-1">
+								{decodeString(item?.name)}
+							</div>
+						</Tooltip>
+					</div>
+				</button>
+			{/if}
+		{/each}
+
+		{#if !allFilesLoaded && !query}
+			<div class="w-full flex justify-center py-2 text-xs animate-pulse items-center gap-2">
+				<Spinner className="size-4" />
+				<div>{$i18n.t('Loading...')}</div>
+			</div>
 		{/if}
-	{/each}
+	</div>
 
 	{#if isYoutubeUrl(query)}
 		<button
